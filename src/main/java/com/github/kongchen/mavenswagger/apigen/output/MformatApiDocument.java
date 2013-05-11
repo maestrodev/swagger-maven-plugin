@@ -100,41 +100,43 @@ public class MformatApiDocument {
     private void swaggerDocToMustacheDoc(OutputTemplate outputTemplate, Documentation swaggerDoc) {
         resourcePath = swaggerDoc.getResourcePath();
 
-        int apiIndex = 1;
-        for (DocumentationEndPoint api : swaggerDoc.getApis()) {
-            description = api.getDescription();
-            MformatApi mapi = new MformatApi();
-            mapi.apiIndex = apiIndex++;
-            addApi(mapi);
-            int opIndex = 1;
-            for (DocumentationOperation op : api.getOperations()) {
-                MformatOperation operation = new MformatOperation();
-                operation.opIndex = opIndex++;
-                mapi.addOperation(operation);
+        if (swaggerDoc.getApis() != null) {
+            int apiIndex = 1;
+            for (DocumentationEndPoint api : swaggerDoc.getApis()) {
+                description = api.getDescription();
+                MformatApi mapi = new MformatApi();
+                mapi.apiIndex = apiIndex++;
+                addApi(mapi);
+                int opIndex = 1;
+                for (DocumentationOperation op : api.getOperations()) {
+                    MformatOperation operation = new MformatOperation();
+                    operation.opIndex = opIndex++;
+                    mapi.addOperation(operation);
 
-                operation.httpMethod = op.getHttpMethod();
-                mapi.path = api.getPath();
-                operation.notes = op.getNotes();
-                operation.summary = op.getSummary();
-                operation.nickname = op.nickname();
-                operation.className = api.path().split("/")[1].split("\\.")[0].replaceAll("/", "");
+                    operation.httpMethod = op.getHttpMethod();
+                    mapi.path = api.getPath();
+                    operation.notes = op.getNotes();
+                    operation.summary = op.getSummary();
+                    operation.nickname = op.nickname();
+                    operation.className = api.path().split("/")[1].split("\\.")[0].replaceAll("/", "");
 
 
-                mapi.url = swaggerDoc.getBasePath() + api.getPath();
-                if (op.getParameters() != null) {
-                    operation.parameters = writeParameters(op.getParameters());
+                    mapi.url = swaggerDoc.getBasePath() + api.getPath();
+                    if (op.getParameters() != null) {
+                        operation.parameters = writeParameters(op.getParameters());
+                    }
+
+//                    sb.append(hc0(level, "Parameters", writeParameters(op.getParameters())));
+
+                    String trueType = getTrueType(op.getResponseClass());
+                    if(trueType != null){
+                        responseTypes.add(trueType);
+                        operation.responseClass = op.getResponseClass();
+                        operation.responseClassLinkType = trueType;
+                    }
+
+                    operation.errorResponses = op.getErrorResponses();
                 }
-
-//                sb.append(hc0(level, "Parameters", writeParameters(op.getParameters())));
-
-                String trueType = getTrueType(op.getResponseClass());
-                if(trueType != null){
-                    responseTypes.add(trueType);
-                    operation.responseClass = op.getResponseClass();
-                    operation.responseClassLinkType = trueType;
-                }
-
-                operation.errorResponses = op.getErrorResponses();
             }
         }
 
@@ -233,43 +235,42 @@ public class MformatApiDocument {
         }
 
         List<MformatItem> ItemList = new LinkedList<MformatItem>();
-        DocumentationSchema field = swaggerDoc.getModels().get(responseClass);
 
-        if (field != null && field.getProperties() != null) {
-            for (String name : field.getProperties().keySet()) {
-                DocumentationSchema prop = field.getProperties().get(name);
-                DocumentationSchema item = prop.getItems();
-
-
-                MformatItem fi = new MformatItem();
-                fi.name = name;
-                fi.type = prop.getType();
-                fi.linkType = fi.type;
-                if (swaggerDoc.getModels().get(fi.type) != null) {
-                    responseTypes.add(fi.type);
-                } else if (fi.type.equalsIgnoreCase("Array")) {
-                    if (item != null) {
-                        if (item.getType().equals("any") && item.ref() != null) {
-                            fi.type = "Array:" + item.ref() + "";
-                            fi.linkType = item.ref();
-                            responseTypes.add(item.ref());
-                        } else {
-                            fi.type = "Array:" + item.getType() + "";
-                            fi.linkType = item.getType();
+        if (swaggerDoc.getModels() != null) {
+            DocumentationSchema field = swaggerDoc.getModels().get(responseClass);
+    
+            if (field != null && field.getProperties() != null) {
+                for (String name : field.getProperties().keySet()) {
+                    DocumentationSchema prop = field.getProperties().get(name);
+                    DocumentationSchema item = prop.getItems();
+    
+                    MformatItem fi = new MformatItem();
+                    fi.name = name;
+                    fi.type = prop.getType();
+                    fi.linkType = fi.type;
+                    if (swaggerDoc.getModels().get(fi.type) != null) {
+                        responseTypes.add(fi.type);
+                    } else if (fi.type.equalsIgnoreCase("Array")) {
+                        if (item != null) {
+                            if (item.getType().equals("any") && item.ref() != null) {
+                                fi.type = "Array:" + item.ref() + "";
+                                fi.linkType = item.ref();
+                                responseTypes.add(item.ref());
+                            } else {
+                                fi.type = "Array:" + item.getType() + "";
+                                fi.linkType = item.getType();
+                            }
                         }
                     }
+                    fi.required = prop.required();
+                    fi.access = prop.getAccess();
+                    fi.description = prop.getDescription();
+                    fi.notes = prop.getNotes();
+                    fi.linkType = filterBasicTypes(fi.linkType);
+                    ItemList.add(fi);
                 }
-                fi.required = prop.required();
-                fi.access = prop.getAccess();
-                fi.description = prop.getDescription();
-                fi.notes = prop.getNotes();
-                fi.linkType = filterBasicTypes(fi.linkType);
-
-                ItemList.add(fi);
-
-
+    
             }
-
         }
         return ItemList;
     }
@@ -527,7 +528,7 @@ class MformatDataType {
 
         MformatDataType that = (MformatDataType) o;
 
-        if (!name.equals(that.name)) return false;
+        if (name == null || that.name == null || !name.equals(that.name)) return false;
 
         return true;
     }

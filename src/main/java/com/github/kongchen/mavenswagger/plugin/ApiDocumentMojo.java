@@ -84,7 +84,7 @@ public class ApiDocumentMojo extends AbstractMojo {
                 apiGenerator.generateDoc(apiSource.getOutputTemplate(), apiSource.getOutputPath());
             }
         } catch (Exception e) {
-            throw new MojoFailureException(e.getMessage());
+            throw new MojoFailureException(e.getMessage(), e);
         }
     }
 
